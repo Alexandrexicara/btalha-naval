@@ -1,7 +1,4 @@
 services:
   - type: web
-    name: batalha-naval
-    env: node
-    buildCommand: npm install
     startCommand: node server.js
-    plan: free
+    env: node
