@@ -97,6 +97,7 @@
     .bn2-cell-miss { background: #2a3a4a; color: #667788; }
     .bn2-cell-hidden { background: #1e3a5f; color: transparent; }
     .bn2-cell-hidden:hover { background: #3a6aaa; cursor: crosshair; }
+    .bn2-cell-preview { background: #ff6b35 !important; color: white; box-shadow: 0 0 12px #ff6b3588; }
     .bn2-cell-sunk { background: #4a1a1a; color: #ff4444; }
     .bn2-cell-projectile {
       position: absolute;
@@ -318,6 +319,7 @@
   <div class="bn2-legend">
     <div class="bn2-legend-item"><div class="bn2-legend-dot" style="background:#2d5a3f"></div> Seu navio</div>
     <div class="bn2-legend-item"><div class="bn2-legend-dot" style="background:#1a5a8f"></div> Selecionado</div>
+    <div class="bn2-legend-item"><div class="bn2-legend-dot" style="background:#ff6b35"></div> Alvo da bomba</div>
     <div class="bn2-legend-item"><div class="bn2-legend-dot" style="background:#8b2e2e"></div> Acerto</div>
     <div class="bn2-legend-item"><div class="bn2-legend-dot" style="background:#2a3a4a"></div> Erro</div>
     <div class="bn2-legend-item"><div class="bn2-legend-dot" style="background:#4a1a1a"></div> Afundado</div>
@@ -350,6 +352,7 @@
     let soundEnabled = true;
     let gameOver = false;
     let phase = 'select';
+    let previewTarget = null;
 
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -519,7 +522,7 @@
       if (phase === 'select') {
         el.textContent = '🎯 Fase 1: Clique em um navio seu para selecionar';
       } else {
-        el.textContent = `🚀 Fase 2: Digite coordenada e clique ATACAR! [${selectedShip.name}]`;
+        el.textContent = `🚀 Fase 2: Clique no tabuleiro inimigo para marcar o alvo e depois ATACAR! [${selectedShip.name}]`;
       }
     }
 
@@ -597,6 +600,7 @@
           } else {
             cell.classList.add('bn2-cell-hidden');
             cell.textContent = '~';
+            cell.onclick = () => selectTarget(r, c);
           }
           enemyGrid.appendChild(cell);
         }
@@ -627,6 +631,24 @@
       updatePhase();
       document.getElementById('bn2-selected-info').textContent = `🚢 ${ship.name} (${ship.icon}) selecionado! Digite a coordenada e atire!`;
       renderBoards();
+    }
+
+    function selectTarget(r, c) {
+      if (phase !== 'fire' || gameOver) return;
+      previewTarget = [r, c];
+      const targets = getWeaponTargets(r, c);
+      const enemyGrid = document.getElementById('bn2-enemy-grid');
+      const cells = enemyGrid.querySelectorAll('.bn2-cell');
+      for (const cell of cells) {
+        const cr = parseInt(cell.dataset.r);
+        const cc = parseInt(cell.dataset.c);
+        cell.classList.remove('bn2-cell-preview');
+        if (targets.some(([tr, tc]) => tr === cr && tc === cc)) {
+          cell.classList.add('bn2-cell-preview');
+        }
+      }
+      const coord = String.fromCharCode(65 + c) + (r + 1);
+      document.getElementById('bn2-coord').value = coord;
     }
 
     function parseCoord(input) {
