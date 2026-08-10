@@ -1,0 +1,908 @@
+
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⚓ Batalha Naval</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0a1628;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+      gap: 12px;
+    }
+    .bn2-title {
+      font-size: 32px;
+      font-weight: bold;
+      color: #ff6b35;
+      text-shadow: 0 0 16px #ff6b3566;
+      margin-bottom: 4px;
+    }
+    .bn2-phase {
+      font-size: 15px;
+      color: #4ecdc4;
+      font-weight: bold;
+      padding: 8px 20px;
+      background: #111d2e;
+      border-radius: 20px;
+      border: 1px solid #2a4a6a;
+      margin-bottom: 4px;
+    }
+    .bn2-boards {
+      display: flex;
+      gap: 30px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .bn2-board-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .bn2-board-label {
+      font-size: 16px;
+      font-weight: bold;
+      color: #4ecdc4;
+    }
+    .bn2-grid-wrapper {
+      position: relative;
+    }
+    .bn2-grid {
+      display: grid;
+      grid-template-columns: 30px repeat(10, 38px);
+      gap: 2px;
+      background: #1a2a40;
+      padding: 8px;
+      border-radius: 10px;
+      border: 2px solid #2a4a6a;
+    }
+    .bn2-cell {
+      width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      border-radius: 4px;
+      cursor: default;
+      user-select: none;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .bn2-header {
+      width: 30px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: bold;
+      color: #8899aa;
+    }
+    .bn2-cell-water { background: #1e3a5f; color: #4a7ab8; }
+    .bn2-cell-water:hover { background: #2a5a8f; }
+    .bn2-cell-ship { background: #2d5a3f; color: #4ecdc4; cursor: pointer; }
+    .bn2-cell-ship:hover { background: #3a7a55; transform: scale(1.1); }
+    .bn2-cell-ship-selected { background: #1a5a8f !important; box-shadow: 0 0 16px #4a9aff, inset 0 0 10px #4a9aff; transform: scale(1.15); z-index: 5; }
+    .bn2-cell-hit { background: #8b2e2e; color: #ff6b35; }
+    .bn2-cell-miss { background: #2a3a4a; color: #667788; }
+    .bn2-cell-hidden { background: #1e3a5f; color: transparent; }
+    .bn2-cell-hidden:hover { background: #3a6aaa; cursor: crosshair; }
+    .bn2-cell-sunk { background: #4a1a1a; color: #ff4444; }
+    .bn2-cell-projectile {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      font-size: 22px;
+      z-index: 100;
+      pointer-events: none;
+    }
+    .bn2-cell-explosion {
+      position: absolute;
+      width: 38px;
+      height: 38px;
+      font-size: 30px;
+      z-index: 100;
+      pointer-events: none;
+      animation: bn2-boom 0.6s ease-out forwards;
+    }
+    .bn2-cell-splash {
+      position: absolute;
+      width: 38px;
+      height: 38px;
+      font-size: 26px;
+      z-index: 100;
+      pointer-events: none;
+      animation: bn2-splash 0.8s ease-out forwards;
+    }
+    @keyframes bn2-boom {
+      0% { transform: scale(0.3); opacity: 1; }
+      50% { transform: scale(1.5); opacity: 1; }
+      100% { transform: scale(1); opacity: 0.7; }
+    }
+    @keyframes bn2-splash {
+      0% { transform: scale(0.5) translateY(0); opacity: 1; }
+      50% { transform: scale(1.3) translateY(-6px); opacity: 0.8; }
+      100% { transform: scale(1) translateY(6px); opacity: 0; }
+    }
+    .bn2-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: center;
+      background: #111d2e;
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: 1px solid #2a4a6a;
+    }
+    .bn2-weapon-select {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .bn2-weapon-btn {
+      padding: 8px 16px;
+      border: 2px solid #3a5a7a;
+      background: #1a2a40;
+      color: #c0d0e0;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    .bn2-weapon-btn:hover { border-color: #4ecdc4; }
+    .bn2-weapon-btn.active {
+      border-color: #ff6b35;
+      background: #2a1a10;
+      color: #ff6b35;
+    }
+    .bn2-coord-input {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .bn2-coord-input input {
+      width: 70px;
+      padding: 8px 10px;
+      border: 1px solid #3a5a7a;
+      background: #0a1628;
+      color: #e0e0e0;
+      border-radius: 6px;
+      font-size: 16px;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .bn2-coord-input input:focus { outline: none; border-color: #ff6b35; }
+    .bn2-fire-btn {
+      padding: 8px 22px;
+      background: #ff6b35;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .bn2-fire-btn:hover:not(:disabled) { background: #ff8855; transform: scale(1.05); }
+    .bn2-fire-btn:disabled { background: #555; cursor: not-allowed; }
+    .bn2-selected-info {
+      font-size: 14px;
+      color: #ff6b35;
+      min-height: 22px;
+      text-align: center;
+    }
+    .bn2-legend {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .bn2-legend-item { display: flex; align-items: center; gap: 4px; }
+    .bn2-legend-dot { width: 14px; height: 14px; border-radius: 3px; }
+    .bn2-log {
+      width: 100%;
+      max-width: 600px;
+      height: 120px;
+      overflow-y: auto;
+      background: #0d1520;
+      border: 1px solid #2a4a6a;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .bn2-log-entry { margin-bottom: 4px; }
+    .bn2-log-hit { color: #ff6b35; }
+    .bn2-log-miss { color: #667788; }
+    .bn2-log-sunk { color: #ff4444; font-weight: bold; }
+    .bn2-log-info { color: #4ecdc4; }
+    .bn2-restart-btn {
+      padding: 10px 28px;
+      background: #ff6b35;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .bn2-restart-btn:hover { background: #ff8855; transform: scale(1.05); }
+    .bn2-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 20px;
+      z-index: 200;
+      font-size: 36px;
+      font-weight: bold;
+    }
+    .bn2-overlay-win { color: #4ecdc4; }
+    .bn2-overlay-lose { color: #ff4444; }
+    .bn2-hidden { display: none !important; }
+    .bn2-sound-toggle {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      background: #1a2a40;
+      border: 1px solid #3a5a7a;
+      color: #c0d0e0;
+      padding: 6px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      z-index: 50;
+    }
+    .bn2-sound-toggle:hover { border-color: #4ecdc4; }
+    @media (max-width: 700px) {
+      .bn2-boards { gap: 16px; }
+      .bn2-grid { grid-template-columns: 26px repeat(10, 30px); }
+      .bn2-cell { width: 30px; height: 30px; font-size: 14px; }
+      .bn2-header { width: 26px; height: 30px; font-size: 11px; }
+      .bn2-title { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <button class="bn2-sound-toggle" id="bn2-sound-btn" onclick="toggleSound()">🔊 Som: ON</button>
+  <div class="bn2-title">⚓ Batalha Naval</div>
+  <div class="bn2-phase" id="bn2-phase">🎯 Fase 1: Clique em um navio seu para selecionar</div>
+
+  <div class="bn2-boards">
+    <div class="bn2-board-wrap">
+      <div class="bn2-board-label">🛡️ Sua Frota (clique num navio)</div>
+      <div class="bn2-grid-wrapper" id="bn2-player-wrapper">
+        <div class="bn2-grid" id="bn2-player-grid"></div>
+      </div>
+    </div>
+    <div class="bn2-board-wrap">
+      <div class="bn2-board-label">🎯 Alvos Inimigos</div>
+      <div class="bn2-grid-wrapper" id="bn2-enemy-wrapper">
+        <div class="bn2-grid" id="bn2-enemy-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bn2-selected-info" id="bn2-selected-info"></div>
+
+  <div class="bn2-controls">
+    <div class="bn2-weapon-select">
+      <span>🎯 Arma:</span>
+      <button class="bn2-weapon-btn active" data-weapon="torpedo" onclick="selectWeapon('torpedo')">🎯 Torpedo</button>
+      <button class="bn2-weapon-btn" data-weapon="missile" onclick="selectWeapon('missile')">🚀 Míssil</button>
+      <button class="bn2-weapon-btn" data-weapon="bomb" onclick="selectWeapon('bomb')">💣 Bomba</button>
+    </div>
+    <div class="bn2-coord-input">
+      <span>📍</span>
+      <input type="text" id="bn2-coord" placeholder="B5" maxlength="3" onkeydown="if(event.key==='Enter')fire()">
+      <button class="bn2-fire-btn" id="bn2-fire-btn" onclick="fire()" disabled>🔥 ATACAR!</button>
+    </div>
+  </div>
+
+  <div class="bn2-legend">
+    <div class="bn2-legend-item"><div class="bn2-legend-dot" style="background:#2d5a3f"></div> Seu navio</div>
+    <div class="bn2-legend-item"><div class="bn2-legend-dot" style="background:#1a5a8f"></div> Selecionado</div>
+    <div class="bn2-legend-item"><div class="bn2-legend-dot" style="background:#8b2e2e"></div> Acerto</div>
+    <div class="bn2-legend-item"><div class="bn2-legend-dot" style="background:#2a3a4a"></div> Erro</div>
+    <div class="bn2-legend-item"><div class="bn2-legend-dot" style="background:#4a1a1a"></div> Afundado</div>
+  </div>
+
+  <div class="bn2-log" id="bn2-log"></div>
+  <button class="bn2-restart-btn" onclick="restartGame()">🔄 Novo Jogo</button>
+
+  <div class="bn2-overlay bn2-hidden" id="bn2-overlay">
+    <div id="bn2-overlay-text"></div>
+    <button class="bn2-restart-btn" onclick="restartGame()">🔄 Jogar Novamente</button>
+  </div>
+
+  <script>
+    const GRID_SIZE = 10;
+    const SHIPS = [
+      { name: 'Porta-aviões', size: 5, icon: '🚢' },
+      { name: 'Navio de guerra', size: 4, icon: '🛳️' },
+      { name: 'Cruzador', size: 3, icon: '⛴️' },
+      { name: 'Submarino', size: 3, icon: '🛥️' },
+      { name: 'Destróier', size: 2, icon: '🚤' }
+    ];
+
+    let playerBoard = [];
+    let enemyBoard = [];
+    let enemyShips = [];
+    let playerShips = [];
+    let selectedShip = null;
+    let currentWeapon = 'torpedo';
+    let soundEnabled = true;
+    let gameOver = false;
+    let phase = 'select';
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playSound(type) {
+      if (!soundEnabled) return;
+      try {
+        const ctx = audioCtx;
+        if (ctx.state === 'suspended') ctx.resume();
+        const now = ctx.currentTime;
+
+        if (type === 'splash') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.setValueAtTime(800, now);
+          osc.frequency.exponentialRampToValueAtTime(200, now + 0.3);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+          osc.start(now);
+          osc.stop(now + 0.4);
+          const noise = ctx.createBufferSource();
+          const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.3, ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.1;
+          noise.buffer = buffer;
+          const noiseGain = ctx.createGain();
+          noise.connect(noiseGain);
+          noiseGain.connect(ctx.destination);
+          noiseGain.gain.setValueAtTime(0.1, now);
+          noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+          noise.start(now);
+          noise.stop(now + 0.3);
+        } else if (type === 'hit') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(150, now);
+          osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+          osc.start(now);
+          osc.stop(now + 0.3);
+          const osc2 = ctx.createOscillator();
+          const gain2 = ctx.createGain();
+          osc2.connect(gain2);
+          gain2.connect(ctx.destination);
+          osc2.type = 'square';
+          osc2.frequency.setValueAtTime(300, now + 0.05);
+          osc2.frequency.exponentialRampToValueAtTime(100, now + 0.2);
+          gain2.gain.setValueAtTime(0.1, now + 0.05);
+          gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+          osc2.start(now + 0.05);
+          osc2.stop(now + 0.25);
+        } else if (type === 'sunk') {
+          for (let i = 0; i < 3; i++) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(200 - i * 40, now + i * 0.1);
+            osc.frequency.exponentialRampToValueAtTime(50, now + i * 0.1 + 0.2);
+            gain.gain.setValueAtTime(0.2, now + i * 0.1);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.25);
+            osc.start(now + i * 0.1);
+            osc.stop(now + i * 0.1 + 0.25);
+          }
+        } else if (type === 'launch') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(400, now);
+          osc.frequency.exponentialRampToValueAtTime(1200, now + 0.4);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+          osc.start(now);
+          osc.stop(now + 0.5);
+        } else if (type === 'select') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(500, now);
+          osc.frequency.setValueAtTime(700, now + 0.08);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+          osc.start(now);
+          osc.stop(now + 0.2);
+        }
+      } catch(e) {}
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      document.getElementById('bn2-sound-btn').textContent = soundEnabled ? '🔊 Som: ON' : '🔇 Som: OFF';
+    }
+
+    function createEmptyBoard() {
+      return Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
+    }
+
+    function canPlace(board, r, c, size, horizontal) {
+      for (let i = 0; i < size; i++) {
+        let rr = horizontal ? r : r + i;
+        let cc = horizontal ? c + i : c;
+        if (rr < 0 || rr >= GRID_SIZE || cc < 0 || cc >= GRID_SIZE) return false;
+        if (board[rr][cc] !== null) return false;
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            let nr = rr + dr, nc = cc + dc;
+            if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE && board[nr][nc] !== null) return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    function placeShipsRandomly(board, shipList) {
+      const placed = [];
+      for (const ship of shipList) {
+        for (let attempts = 0; attempts < 1000; attempts++) {
+          const horizontal = Math.random() < 0.5;
+          const r = Math.floor(Math.random() * GRID_SIZE);
+          const c = Math.floor(Math.random() * GRID_SIZE);
+          if (canPlace(board, r, c, ship.size, horizontal)) {
+            const cells = [];
+            for (let i = 0; i < ship.size; i++) {
+              let rr = horizontal ? r : r + i;
+              let cc = horizontal ? c + i : c;
+              board[rr][cc] = { ship: ship.name, hit: false };
+              cells.push([rr, cc]);
+            }
+            placed.push({ ...ship, cells, sunk: false });
+            break;
+          }
+        }
+      }
+      return placed;
+    }
+
+    function initGame() {
+      playerBoard = createEmptyBoard();
+      enemyBoard = createEmptyBoard();
+      playerShips = placeShipsRandomly(playerBoard, SHIPS);
+      enemyShips = placeShipsRandomly(enemyBoard, SHIPS);
+      selectedShip = null;
+      currentWeapon = 'torpedo';
+      gameOver = false;
+      phase = 'select';
+      document.getElementById('bn2-overlay').classList.add('bn2-hidden');
+      document.getElementById('bn2-coord').value = '';
+      document.getElementById('bn2-fire-btn').disabled = true;
+      updatePhase();
+      updateWeaponButtons();
+      renderBoards();
+      log('🎮 Jogo iniciado! Clique em um navio seu para selecionar.', 'info');
+    }
+
+    function updatePhase() {
+      const el = document.getElementById('bn2-phase');
+      if (phase === 'select') {
+        el.textContent = '🎯 Fase 1: Clique em um navio seu para selecionar';
+      } else {
+        el.textContent = `🚀 Fase 2: Digite coordenada e clique ATACAR! [${selectedShip.name}]`;
+      }
+    }
+
+    function renderBoards() {
+      const playerGrid = document.getElementById('bn2-player-grid');
+      const enemyGrid = document.getElementById('bn2-enemy-grid');
+      playerGrid.innerHTML = '';
+      enemyGrid.innerHTML = '';
+
+      playerGrid.appendChild(document.createElement('div'));
+      for (let c = 0; c < GRID_SIZE; c++) {
+        const h = document.createElement('div');
+        h.className = 'bn2-header';
+        h.textContent = String.fromCharCode(65 + c);
+        playerGrid.appendChild(h);
+      }
+      for (let r = 0; r < GRID_SIZE; r++) {
+        const rh = document.createElement('div');
+        rh.className = 'bn2-header';
+        rh.textContent = r + 1;
+        playerGrid.appendChild(rh);
+        for (let c = 0; c < GRID_SIZE; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'bn2-cell';
+          cell.dataset.r = r;
+          cell.dataset.c = c;
+          const data = playerBoard[r][c];
+          if (data && data.hit) {
+            cell.classList.add(data.sunkMark ? 'bn2-cell-sunk' : 'bn2-cell-hit');
+            cell.textContent = data.sunkMark ? '💀' : '💥';
+          } else if (data) {
+            cell.classList.add('bn2-cell-ship');
+            cell.textContent = '🚢';
+            cell.onclick = () => selectShip(r, c);
+          } else {
+            cell.classList.add('bn2-cell-water');
+            cell.textContent = '~';
+          }
+          playerGrid.appendChild(cell);
+        }
+      }
+
+      enemyGrid.appendChild(document.createElement('div'));
+      for (let c = 0; c < GRID_SIZE; c++) {
+        const h = document.createElement('div');
+        h.className = 'bn2-header';
+        h.textContent = String.fromCharCode(65 + c);
+        enemyGrid.appendChild(h);
+      }
+      for (let r = 0; r < GRID_SIZE; r++) {
+        const rh = document.createElement('div');
+        rh.className = 'bn2-header';
+        rh.textContent = r + 1;
+        enemyGrid.appendChild(rh);
+        for (let c = 0; c < GRID_SIZE; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'bn2-cell';
+          cell.dataset.r = r;
+          cell.dataset.c = c;
+          const data = enemyBoard[r][c];
+          if (data && data.revealed) {
+            if (data.hit) {
+              const ship = enemyShips.find(s => s.name === data.ship);
+              if (ship && ship.sunk) {
+                cell.classList.add('bn2-cell-sunk');
+                cell.textContent = '💀';
+              } else {
+                cell.classList.add('bn2-cell-hit');
+                cell.textContent = '💥';
+              }
+            } else {
+              cell.classList.add('bn2-cell-miss');
+              cell.textContent = '💨';
+            }
+          } else {
+            cell.classList.add('bn2-cell-hidden');
+            cell.textContent = '~';
+          }
+          enemyGrid.appendChild(cell);
+        }
+      }
+
+      if (selectedShip) {
+        for (const [sr, sc] of selectedShip.cells) {
+          const cells = playerGrid.querySelectorAll('.bn2-cell');
+          for (const cell of cells) {
+            if (parseInt(cell.dataset.r) === sr && parseInt(cell.dataset.c) === sc) {
+              cell.classList.add('bn2-cell-ship-selected');
+            }
+          }
+        }
+      }
+    }
+
+    function selectShip(r, c) {
+      if (gameOver) return;
+      const data = playerBoard[r][c];
+      if (!data) return;
+      const ship = playerShips.find(s => s.cells.some(([sr, sc]) => sr === r && sc === c));
+      if (!ship || ship.sunk) return;
+      selectedShip = ship;
+      phase = 'fire';
+      playSound('select');
+      document.getElementById('bn2-fire-btn').disabled = false;
+      updatePhase();
+      document.getElementById('bn2-selected-info').textContent = `🚢 ${ship.name} (${ship.icon}) selecionado! Digite a coordenada e atire!`;
+      renderBoards();
+    }
+
+    function parseCoord(input) {
+      input = input.trim().toUpperCase();
+      if (input.length < 2) return null;
+      const col = input.charCodeAt(0) - 65;
+      const row = parseInt(input.slice(1)) - 1;
+      if (col < 0 || col >= GRID_SIZE || row < 0 || row >= GRID_SIZE || isNaN(row)) return null;
+      return [row, col];
+    }
+
+    function getWeaponTargets(r, c) {
+      const targets = [];
+      if (currentWeapon === 'torpedo') {
+        targets.push([r, c]);
+      } else if (currentWeapon === 'missile') {
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            const nr = r + dr, nc = c + dc;
+            if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE) targets.push([nr, nc]);
+          }
+        }
+      } else if (currentWeapon === 'bomb') {
+        targets.push([r, c]);
+        const dirs = [[0,1],[0,-1],[1,0],[-1,0],[0,2],[0,-2],[2,0],[-2,0]];
+        for (const [dr, dc] of dirs) {
+          const nr = r + dr, nc = c + dc;
+          if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE) targets.push([nr, nc]);
+        }
+      }
+      return targets;
+    }
+
+    function weaponIcon() {
+      if (currentWeapon === 'torpedo') return '🎯';
+      if (currentWeapon === 'missile') return '🚀';
+      return '💣';
+    }
+
+    function weaponName() {
+      if (currentWeapon === 'torpedo') return 'Torpedo';
+      if (currentWeapon === 'missile') return 'Míssil';
+      return 'Bomba';
+    }
+
+    async function fire() {
+      if (gameOver || !selectedShip) return;
+      const input = document.getElementById('bn2-coord').value;
+      const coord = parseCoord(input);
+      if (!coord) {
+        log('⚠️ Coordenada inválida! Use formato: B5, C3, A10...', 'info');
+        return;
+      }
+
+      const [r, c] = coord;
+      const targets = getWeaponTargets(r, c);
+      let anyNew = false;
+      for (const [tr, tc] of targets) {
+        const cell = enemyBoard[tr][tc];
+        if (!cell || !cell.revealed) anyNew = true;
+      }
+      if (!anyNew) {
+        log('⚠️ Todas essas células já foram atacadas!', 'info');
+        return;
+      }
+
+      document.getElementById('bn2-fire-btn').disabled = true;
+      playSound('launch');
+      await animateProjectile(r, c);
+
+      let hitCount = 0;
+      for (const [tr, tc] of targets) {
+        const cell = enemyBoard[tr][tc];
+        if (!cell) {
+          enemyBoard[tr][tc] = { revealed: true, hit: false };
+          showEffect(tr, tc, 'splash');
+          playSound('splash');
+        } else if (!cell.revealed) {
+          cell.revealed = true;
+          cell.hit = true;
+          hitCount++;
+          showEffect(tr, tc, 'explosion');
+          playSound('hit');
+        }
+      }
+
+      checkSunk(enemyShips, enemyBoard);
+
+      if (hitCount > 0) {
+        log(`💥 ${weaponName()} acertou ${hitCount} vez(es)!`, 'hit');
+      } else {
+        log(`💨 ${weaponName()} caiu na água...`, 'miss');
+      }
+
+      renderBoards();
+
+      if (enemyShips.every(s => s.sunk)) {
+        setTimeout(() => endGame(true), 500);
+        return;
+      }
+
+      setTimeout(() => {
+        enemyTurn();
+        document.getElementById('bn2-fire-btn').disabled = false;
+      }, 800);
+    }
+
+    function animateProjectile(targetR, targetC) {
+      return new Promise(resolve => {
+        const wrapper = document.getElementById('bn2-enemy-wrapper');
+        const grid = document.getElementById('bn2-enemy-grid');
+        const cells = grid.querySelectorAll('.bn2-cell');
+        let targetCell = null;
+        for (const cell of cells) {
+          if (parseInt(cell.dataset.r) === targetR && parseInt(cell.dataset.c) === targetC) {
+            targetCell = cell;
+            break;
+          }
+        }
+        if (!targetCell) { resolve(); return; }
+
+        const proj = document.createElement('div');
+        proj.className = 'bn2-cell-projectile';
+        proj.textContent = weaponIcon();
+        proj.style.left = '50%';
+        proj.style.top = '-40px';
+        wrapper.appendChild(proj);
+
+        const rect = targetCell.getBoundingClientRect();
+        const wrapRect = wrapper.getBoundingClientRect();
+        const targetX = rect.left - wrapRect.left + rect.width / 2 - 14;
+        const targetY = rect.top - wrapRect.top + rect.height / 2 - 14;
+
+        proj.animate([
+          { transform: 'translate(0, 0) scale(0.5)', opacity: 1 },
+          { transform: `translate(${targetX}px, ${targetY}px) scale(1.3) rotate(360deg)`, opacity: 1 }
+        ], {
+          duration: 600,
+          easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+        }).onfinish = () => {
+          proj.remove();
+          resolve();
+        };
+      });
+    }
+
+    function showEffect(r, c, type) {
+      const wrapper = document.getElementById('bn2-enemy-wrapper');
+      const grid = document.getElementById('bn2-enemy-grid');
+      const cells = grid.querySelectorAll('.bn2-cell');
+      let targetCell = null;
+      for (const cell of cells) {
+        if (parseInt(cell.dataset.r) === r && parseInt(cell.dataset.c) === c) {
+          targetCell = cell;
+          break;
+        }
+      }
+      if (!targetCell) return;
+
+      const effect = document.createElement('div');
+      effect.className = type === 'explosion' ? 'bn2-cell-explosion' : 'bn2-cell-splash';
+      effect.textContent = type === 'explosion' ? '💥' : '💦';
+
+      const rect = targetCell.getBoundingClientRect();
+      const wrapRect = wrapper.getBoundingClientRect();
+      effect.style.left = (rect.left - wrapRect.left) + 'px';
+      effect.style.top = (rect.top - wrapRect.top) + 'px';
+
+      wrapper.appendChild(effect);
+      setTimeout(() => effect.remove(), 800);
+    }
+
+    function checkSunk(ships, board) {
+      for (const ship of ships) {
+        if (!ship.sunk && ship.cells.every(([r, c]) => board[r][c].revealed && board[r][c].hit)) {
+          ship.sunk = true;
+          for (const [r, c] of ship.cells) {
+            board[r][c].sunkMark = true;
+          }
+          log(`🔥 ${ship.name} (${ship.icon}) foi AFUNDADO!`, 'sunk');
+          playSound('sunk');
+        }
+      }
+    }
+
+    function enemyTurn() {
+      if (gameOver) return;
+      let r, c;
+      const knownHits = [];
+      for (let rr = 0; rr < GRID_SIZE; rr++) {
+        for (let cc = 0; cc < GRID_SIZE; cc++) {
+          if (playerBoard[rr][cc] && playerBoard[rr][cc].hit && !playerBoard[rr][cc].sunkMark) {
+            knownHits.push([rr, cc]);
+          }
+        }
+      }
+
+      if (knownHits.length > 0) {
+        const [hr, hc] = knownHits[Math.floor(Math.random() * knownHits.length)];
+        const neighbors = [[0,1],[0,-1],[1,0],[-1,0]];
+        const candidates = [];
+        for (const [dr, dc] of neighbors) {
+          const nr = hr + dr, nc = hc + dc;
+          if (nr >= 0 && nr < GRID_SIZE && nc >= 0 && nc < GRID_SIZE) {
+            const cell = playerBoard[nr][nc];
+            if (!cell || (!cell.hit && !cell.miss)) candidates.push([nr, nc]);
+          }
+        }
+        if (candidates.length > 0) {
+          [r, c] = candidates[Math.floor(Math.random() * candidates.length)];
+        } else {
+          do { r = Math.floor(Math.random() * GRID_SIZE); c = Math.floor(Math.random() * GRID_SIZE); }
+          while (playerBoard[r][c] && (playerBoard[r][c].hit || playerBoard[r][c].miss));
+        }
+      } else {
+        do { r = Math.floor(Math.random() * GRID_SIZE); c = Math.floor(Math.random() * GRID_SIZE); }
+        while (playerBoard[r][c] && (playerBoard[r][c].hit || playerBoard[r][c].miss));
+      }
+
+      const cell = playerBoard[r][c];
+      if (cell) {
+        cell.hit = true;
+        checkSunk(playerShips, playerBoard);
+        log(`⚠️ Inimigo acertou em ${String.fromCharCode(65+c)}${r+1}! 💥`, 'hit');
+      } else {
+        playerBoard[r][c] = { hit: false, miss: true };
+        log(`✅ Inimigo errou em ${String.fromCharCode(65+c)}${r+1}! 💨`, 'miss');
+      }
+
+      renderBoards();
+
+      if (playerShips.every(s => s.sunk)) {
+        setTimeout(() => endGame(false), 500);
+      }
+    }
+
+    function endGame(playerWon) {
+      gameOver = true;
+      const overlay = document.getElementById('bn2-overlay');
+      const text = document.getElementById('bn2-overlay-text');
+      overlay.classList.remove('bn2-hidden');
+      if (playerWon) {
+        overlay.classList.add('bn2-overlay-win');
+        text.innerHTML = '🏆 VOCÊ VENCEU!<br><span style="font-size:18px">Todos os navios inimigos afundados!</span>';
+      } else {
+        overlay.classList.add('bn2-overlay-lose');
+        text.innerHTML = '💀 VOCÊ PERDEU!<br><span style="font-size:18px">Sua frota foi destruída...</span>';
+      }
+    }
+
+    function selectWeapon(w) {
+      currentWeapon = w;
+      updateWeaponButtons();
+      log(`🎯 Arma: ${weaponName()}`, 'info');
+    }
+
+    function updateWeaponButtons() {
+      document.querySelectorAll('.bn2-weapon-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.weapon === currentWeapon);
+      });
+    }
+
+    function log(msg, type) {
+      const logEl = document.getElementById('bn2-log');
+      const entry = document.createElement('div');
+      entry.className = 'bn2-log-entry bn2-log-' + type;
+      entry.textContent = msg;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function restartGame() {
+      initGame();
+    }
+
+    initGame();
+  </script>
+</body>
+</html>
