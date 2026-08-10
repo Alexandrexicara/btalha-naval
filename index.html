@@ -271,12 +271,47 @@
       z-index: 50;
     }
     .bn2-sound-toggle:hover { border-color: #4ecdc4; }
+    @media (max-width: 900px) {
+      .bn2-boards { gap: 20px; }
+      .bn2-grid { grid-template-columns: 28px repeat(10, 34px); }
+      .bn2-cell { width: 34px; height: 34px; font-size: 16px; }
+      .bn2-header { width: 28px; height: 34px; font-size: 12px; }
+      .bn2-title { font-size: 28px; }
+      .bn2-phase { font-size: 14px; padding: 6px 16px; }
+      .bn2-board-label { font-size: 14px; }
+      .bn2-controls { padding: 10px 16px; }
+      .bn2-weapon-btn { padding: 6px 12px; font-size: 13px; }
+      .bn2-fire-btn { padding: 6px 18px; font-size: 14px; }
+      .bn2-coord-input input { width: 60px; padding: 6px 8px; font-size: 14px; }
+    }
     @media (max-width: 700px) {
-      .bn2-boards { gap: 16px; }
+      .bn2-boards { gap: 16px; flex-direction: column; }
       .bn2-grid { grid-template-columns: 26px repeat(10, 30px); }
       .bn2-cell { width: 30px; height: 30px; font-size: 14px; }
       .bn2-header { width: 26px; height: 30px; font-size: 11px; }
       .bn2-title { font-size: 24px; }
+      .bn2-phase { font-size: 13px; padding: 6px 14px; }
+      .bn2-board-label { font-size: 13px; }
+      .bn2-controls { flex-direction: column; padding: 10px 14px; }
+      .bn2-weapon-select { flex-wrap: wrap; justify-content: center; }
+      .bn2-coord-input { width: 100%; justify-content: center; }
+      .bn2-coord-input input { width: 70px; }
+      .bn2-fire-btn { width: 100%; }
+      .bn2-legend { font-size: 11px; }
+      .bn2-log { height: 100px; font-size: 12px; }
+      .bn2-restart-btn { padding: 8px 20px; font-size: 14px; }
+    }
+    @media (max-width: 480px) {
+      .bn2-grid { grid-template-columns: 22px repeat(10, 26px); }
+      .bn2-cell { width: 26px; height: 26px; font-size: 12px; }
+      .bn2-header { width: 22px; height: 26px; font-size: 10px; }
+      .bn2-title { font-size: 20px; }
+      .bn2-phase { font-size: 12px; padding: 5px 12px; }
+      .bn2-board-label { font-size: 12px; }
+      .bn2-weapon-btn { padding: 5px 10px; font-size: 12px; }
+      .bn2-fire-btn { padding: 5px 16px; font-size: 13px; }
+      .bn2-coord-input input { width: 55px; padding: 5px 6px; font-size: 13px; }
+      .bn2-log { height: 80px; font-size: 11px; }
     }
   </style>
 </head>
@@ -317,7 +352,7 @@
   </div>
 
   <div class="bn2-legend">
-    <div class="bn2-legend-item"><div class="bn2-legend-dot" style="background:#2d5a3f"></div> Seu navio</div>
+    <div class="bn2-legend-item"><div class="bn2-legend-dot" style="background:#2d5a3f"></div> Navio/Submarino</div>
     <div class="bn2-legend-item"><div class="bn2-legend-dot" style="background:#1a5a8f"></div> Selecionado</div>
     <div class="bn2-legend-item"><div class="bn2-legend-dot" style="background:#ff6b35"></div> Alvo da bomba</div>
     <div class="bn2-legend-item"><div class="bn2-legend-dot" style="background:#8b2e2e"></div> Acerto</div>
@@ -336,11 +371,12 @@
   <script>
     const GRID_SIZE = 10;
     const SHIPS = [
-      { name: 'Porta-aviões', size: 5, icon: '🚢' },
-      { name: 'Navio de guerra', size: 4, icon: '🛳️' },
-      { name: 'Cruzador', size: 3, icon: '⛴️' },
-      { name: 'Submarino', size: 3, icon: '🛥️' },
-      { name: 'Destróier', size: 2, icon: '🚤' }
+      { name: 'Porta-aviões', size: 5, icon: '🚢', type: 'ship' },
+      { name: 'Navio de guerra', size: 4, icon: '🛳️', type: 'ship' },
+      { name: 'Cruzador', size: 3, icon: '⛴️', type: 'ship' },
+      { name: 'Submarino 1', size: 3, icon: '🛥️', type: 'submarine' },
+      { name: 'Submarino 2', size: 3, icon: '🛥️', type: 'submarine' },
+      { name: 'Submarino 3', size: 2, icon: '🛥️', type: 'submarine' }
     ];
 
     let playerBoard = [];
@@ -555,7 +591,8 @@
             cell.textContent = data.sunkMark ? '💀' : '💥';
           } else if (data) {
             cell.classList.add('bn2-cell-ship');
-            cell.textContent = '🚢';
+            const ship = playerShips.find(s => s.name === data.ship);
+            cell.textContent = ship ? ship.icon : '🚢';
             cell.onclick = () => selectShip(r, c);
           } else {
             cell.classList.add('bn2-cell-water');
@@ -683,6 +720,7 @@
     }
 
     function weaponIcon() {
+      if (selectedShip && selectedShip.name === 'Porta-aviões') return '✈️';
       if (currentWeapon === 'torpedo') return '🎯';
       if (currentWeapon === 'missile') return '🚀';
       return '💣';
@@ -770,29 +808,111 @@
         }
         if (!targetCell) { resolve(); return; }
 
-        const proj = document.createElement('div');
-        proj.className = 'bn2-cell-projectile';
-        proj.textContent = weaponIcon();
-        proj.style.left = '50%';
-        proj.style.top = '-40px';
-        wrapper.appendChild(proj);
-
         const rect = targetCell.getBoundingClientRect();
         const wrapRect = wrapper.getBoundingClientRect();
         const targetX = rect.left - wrapRect.left + rect.width / 2 - 14;
         const targetY = rect.top - wrapRect.top + rect.height / 2 - 14;
 
-        proj.animate([
-          { transform: 'translate(0, 0) scale(0.5)', opacity: 1 },
-          { transform: `translate(${targetX}px, ${targetY}px) scale(1.3) rotate(360deg)`, opacity: 1 }
-        ], {
-          duration: 600,
-          easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-        }).onfinish = () => {
-          proj.remove();
-          resolve();
-        };
+        const isPlane = selectedShip && selectedShip.name === 'Porta-aviões';
+
+        if (isPlane) {
+          // Cria o avião
+          const plane = document.createElement('div');
+          plane.className = 'bn2-cell-projectile';
+          plane.textContent = '✈️';
+          plane.style.left = '50%';
+          plane.style.top = '-40px';
+          wrapper.appendChild(plane);
+
+          // Avião voa até uma posição acima do alvo
+          const planeTargetX = targetX;
+          const planeTargetY = targetY - 80;
+
+          const flyToTarget = plane.animate([
+            { transform: 'translate(0, 0) scale(0.5)', opacity: 1 },
+            { transform: `translate(${planeTargetX}px, ${planeTargetY}px) scale(1.2)`, opacity: 1 }
+          ], {
+            duration: 800,
+            easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+            fill: 'forwards'
+          });
+
+          flyToTarget.onfinish = () => {
+            // UMA munição que aparece 3 vezes durante o caminho até o alvo
+            const weapon = getActualWeaponIcon();
+
+            // Cria a munição
+            const bomb = document.createElement('div');
+            bomb.className = 'bn2-cell-projectile';
+            bomb.textContent = weapon;
+            bomb.style.left = '50%';
+            bomb.style.top = '-40px';
+            bomb.style.transform = `translate(${planeTargetX}px, ${planeTargetY}px) scale(0.8)`;
+            wrapper.appendChild(bomb);
+
+            // Calcula pontos intermediários
+            const midX1 = planeTargetX + (targetX - planeTargetX) * 0.33;
+            const midY1 = planeTargetY + (targetY - planeTargetY) * 0.33;
+            const midX2 = planeTargetX + (targetX - planeTargetX) * 0.66;
+            const midY2 = planeTargetY + (targetY - planeTargetY) * 0.66;
+
+            // Munição viaja do avião até o alvo, aparecendo 3 vezes
+            const dropBombAnim = bomb.animate([
+              { transform: `translate(${planeTargetX}px, ${planeTargetY}px) scale(0.8)`, opacity: 1 },
+              { transform: `translate(${midX1}px, ${midY1}px) scale(1.0)`, opacity: 1, offset: 0.33 },
+              { transform: `translate(${midX2}px, ${midY2}px) scale(1.1)`, opacity: 1, offset: 0.66 },
+              { transform: `translate(${targetX}px, ${targetY}px) scale(1.3) rotate(360deg)`, opacity: 1, offset: 0.8 },
+              { transform: `translate(${targetX}px, ${targetY}px) scale(1.5) rotate(360deg)`, opacity: 1, offset: 0.9 },
+              { transform: `translate(${targetX}px, ${targetY}px) scale(2.0) rotate(360deg)`, opacity: 0 }
+            ], {
+              duration: 3500,
+              easing: 'linear'
+            });
+
+            dropBombAnim.onfinish = () => {
+              bomb.remove();
+              // Avião retorna para a base
+              const flyBack = plane.animate([
+                { transform: `translate(${planeTargetX}px, ${planeTargetY}px) scale(1.2)`, opacity: 1 },
+                { transform: 'translate(0, 0) scale(0.5)', opacity: 1 }
+              ], {
+                duration: 800,
+                easing: 'cubic-bezier(0.4, 0, 0.2, 1)'
+              });
+
+              flyBack.onfinish = () => {
+                plane.remove();
+                resolve();
+              };
+            };
+          };
+        } else {
+          // Comportamento normal para outras armas
+          const proj = document.createElement('div');
+          proj.className = 'bn2-cell-projectile';
+          proj.textContent = weaponIcon();
+          proj.style.left = '50%';
+          proj.style.top = '-40px';
+          wrapper.appendChild(proj);
+
+          proj.animate([
+            { transform: 'translate(0, 0) scale(0.5)', opacity: 1 },
+            { transform: `translate(${targetX}px, ${targetY}px) scale(1.3) rotate(360deg)`, opacity: 1 }
+          ], {
+            duration: 600,
+            easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+          }).onfinish = () => {
+            proj.remove();
+            resolve();
+          };
+        }
       });
+    }
+
+    function getActualWeaponIcon() {
+      if (currentWeapon === 'torpedo') return '🎯';
+      if (currentWeapon === 'missile') return '🚀';
+      return '💣';
     }
 
     function showEffect(r, c, type) {
