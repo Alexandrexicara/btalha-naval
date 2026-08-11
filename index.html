@@ -318,6 +318,7 @@
 <body>
   <button class="bn2-sound-toggle" id="bn2-sound-btn" onclick="toggleSound()">🔊 Som: ON</button>
   <div class="bn2-title">⚓ Batalha Naval</div>
+  <div class="bn2-phase" id="bn2-phase-display">⚔️ Fase 1/5 | Você: 0 | Inimigo: 0</div>
   <div class="bn2-phase" id="bn2-phase">🎯 Fase 1: Clique em um navio seu para selecionar</div>
 
   <div class="bn2-boards">
@@ -389,6 +390,14 @@
     let gameOver = false;
     let phase = 'select';
     let previewTarget = null;
+    
+    // Sistema de fases
+    let currentPhase = 1;
+    let totalPhases = 5;
+    let playerScore = 0;
+    let enemyScore = 0;
+    let warWinner = null;
+    let battleHistory = []; // Para controlar manipulação
 
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -536,10 +545,16 @@
     }
 
     function initGame() {
+      // Limpar completamente os tabuleiros e navios
       playerBoard = createEmptyBoard();
       enemyBoard = createEmptyBoard();
+      playerShips = [];
+      enemyShips = [];
+      
+      // Posicionar novos navios
       playerShips = placeShipsRandomly(playerBoard, SHIPS);
       enemyShips = placeShipsRandomly(enemyBoard, SHIPS);
+      
       selectedShip = null;
       currentWeapon = 'torpedo';
       gameOver = false;
@@ -549,8 +564,9 @@
       document.getElementById('bn2-fire-btn').disabled = true;
       updatePhase();
       updateWeaponButtons();
+      updatePhaseDisplay();
       renderBoards();
-      log('🎮 Jogo iniciado! Clique em um navio seu para selecionar.', 'info');
+      log(`🎮 Fase ${currentPhase}/${totalPhases} iniciada! Clique em um navio seu para selecionar.`, 'info');
     }
 
     function updatePhase() {
@@ -560,6 +576,60 @@
       } else {
         el.textContent = `🚀 Fase 2: Clique no tabuleiro inimigo para marcar o alvo e depois ATACAR! [${selectedShip.name}]`;
       }
+    }
+
+    function updatePhaseDisplay() {
+      const phaseDisplay = document.getElementById('bn2-phase-display');
+      if (phaseDisplay) {
+        phaseDisplay.innerHTML = `⚔️ Fase ${currentPhase}/${totalPhases} | Você: ${playerScore} | Inimigo: ${enemyScore}`;
+      }
+    }
+
+    function manipulateBattleResult() {
+      // Algoritmo de manipulação: inimigo ganha 2-3, usuário ganha 1
+      const recentResults = battleHistory.slice(-4);
+      const enemyWins = recentResults.filter(r => r === 'enemy').length;
+      const playerWins = recentResults.filter(r => r === 'player').length;
+      
+      // Se inimigo ganhou 2-3 das últimas 4, usuário ganha a próxima
+      if (enemyWins >= 2 && playerWins <= 1) {
+        return 'player';
+      }
+      
+      return 'enemy';
+    }
+
+    function endBattle(playerWon) {
+      const manipulatedWinner = manipulateBattleResult();
+      
+      if (manipulatedWinner === 'player') {
+        playerScore++;
+        log(`🏆 Você venceu a Fase ${currentPhase}!`, 'hit');
+      } else {
+        enemyScore++;
+        log(`💀 Você perdeu a Fase ${currentPhase}!`, 'miss');
+      }
+      
+      battleHistory.push(manipulatedWinner);
+      
+      if (currentPhase >= totalPhases) {
+        // Guerra terminou
+        if (playerScore > enemyScore) {
+          warWinner = 'player';
+          setTimeout(() => endWar(true), 1000);
+        } else {
+          warWinner = 'enemy';
+          setTimeout(() => endWar(false), 1000);
+        }
+      } else {
+        // Próxima fase
+        currentPhase++;
+        setTimeout(() => {
+          initGame();
+        }, 2000);
+      }
+      
+      updatePhaseDisplay();
     }
 
     function renderBoards() {
@@ -586,14 +656,20 @@
           cell.dataset.r = r;
           cell.dataset.c = c;
           const data = playerBoard[r][c];
-          if (data && data.hit) {
-            cell.classList.add(data.sunkMark ? 'bn2-cell-sunk' : 'bn2-cell-hit');
-            cell.textContent = data.sunkMark ? '💀' : '💥';
-          } else if (data) {
-            cell.classList.add('bn2-cell-ship');
-            const ship = playerShips.find(s => s.name === data.ship);
-            cell.textContent = ship ? ship.icon : '🚢';
-            cell.onclick = () => selectShip(r, c);
+          if (data && data.ship) {  // Só mostra navio se tiver propriedade 'ship'
+            if (data.hit) {
+              cell.classList.add(data.sunkMark ? 'bn2-cell-sunk' : 'bn2-cell-hit');
+              cell.textContent = data.sunkMark ? '💀' : '💥';
+            } else {
+              cell.classList.add('bn2-cell-ship');
+              const ship = playerShips.find(s => s.name === data.ship);
+              cell.textContent = ship ? ship.icon : '🚢';
+              cell.onclick = () => selectShip(r, c);
+            }
+          } else if (data && data.miss) {
+            // Mostra marca de erro do inimigo
+            cell.classList.add('bn2-cell-miss');
+            cell.textContent = '💨';
           } else {
             cell.classList.add('bn2-cell-water');
             cell.textContent = '~';
@@ -721,7 +797,7 @@
 
     function weaponIcon() {
       if (selectedShip && selectedShip.name === 'Porta-aviões') return '✈️';
-      if (currentWeapon === 'torpedo') return '🎯';
+      if (currentWeapon === 'torpedo') return '<img src="img/fuzil.png" style="width: 20px; height: 20px;">';
       if (currentWeapon === 'missile') return '🚀';
       return '💣';
     }
@@ -784,7 +860,7 @@
       renderBoards();
 
       if (enemyShips.every(s => s.sunk)) {
-        setTimeout(() => endGame(true), 500);
+        setTimeout(() => endBattle(true), 500);
         return;
       }
 
@@ -815,13 +891,35 @@
 
         const isPlane = selectedShip && selectedShip.name === 'Porta-aviões';
 
+        // Calcular posição inicial do navio/submarino selecionado
+        let startX = '50%';
+        let startY = '-40px';
+        
+        if (selectedShip && selectedShip.cells && selectedShip.cells.length > 0) {
+          const playerGrid = document.getElementById('bn2-player-grid');
+          const playerCells = playerGrid.querySelectorAll('.bn2-cell');
+          const [shipR, shipC] = selectedShip.cells[0];
+          let shipCell = null;
+          for (const cell of playerCells) {
+            if (parseInt(cell.dataset.r) === shipR && parseInt(cell.dataset.c) === shipC) {
+              shipCell = cell;
+              break;
+            }
+          }
+          if (shipCell) {
+            const shipRect = shipCell.getBoundingClientRect();
+            startX = (shipRect.left - wrapRect.left + shipRect.width / 2 - 14) + 'px';
+            startY = (shipRect.top - wrapRect.top + shipRect.height / 2 - 14) + 'px';
+          }
+        }
+
         if (isPlane) {
-          // Cria o avião
+          // Cria o avião - sai do porta-aviões
           const plane = document.createElement('div');
           plane.className = 'bn2-cell-projectile';
           plane.textContent = '✈️';
-          plane.style.left = '50%';
-          plane.style.top = '-40px';
+          plane.style.left = startX;
+          plane.style.top = startY;
           wrapper.appendChild(plane);
 
           // Avião voa até uma posição acima do alvo
@@ -830,7 +928,7 @@
 
           const flyToTarget = plane.animate([
             { transform: 'translate(0, 0) scale(0.5)', opacity: 1 },
-            { transform: `translate(${planeTargetX}px, ${planeTargetY}px) scale(1.2)`, opacity: 1 }
+            { transform: `translate(${planeTargetX - parseInt(startX)}px, ${planeTargetY - parseInt(startY)}px) scale(1.2)`, opacity: 1 }
           ], {
             duration: 800,
             easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
@@ -838,16 +936,19 @@
           });
 
           flyToTarget.onfinish = () => {
-            // UMA munição que aparece 3 vezes durante o caminho até o alvo
+            // Munição sai de dentro do avião quando ele está sobre o alvo
             const weapon = getActualWeaponIcon();
 
-            // Cria a munição
+            // Cria a munição na posição do avião
             const bomb = document.createElement('div');
             bomb.className = 'bn2-cell-projectile';
-            bomb.textContent = weapon;
-            bomb.style.left = '50%';
-            bomb.style.top = '-40px';
-            bomb.style.transform = `translate(${planeTargetX}px, ${planeTargetY}px) scale(0.8)`;
+            if (weapon.includes('<img')) {
+              bomb.innerHTML = weapon;
+            } else {
+              bomb.textContent = weapon;
+            }
+            bomb.style.left = (planeTargetX + 14) + 'px';
+            bomb.style.top = (planeTargetY + 14) + 'px';
             wrapper.appendChild(bomb);
 
             // Calcula pontos intermediários
@@ -856,14 +957,14 @@
             const midX2 = planeTargetX + (targetX - planeTargetX) * 0.66;
             const midY2 = planeTargetY + (targetY - planeTargetY) * 0.66;
 
-            // Munição viaja do avião até o alvo, aparecendo 3 vezes
+            // Munição viaja do avião até o alvo
             const dropBombAnim = bomb.animate([
-              { transform: `translate(${planeTargetX}px, ${planeTargetY}px) scale(0.8)`, opacity: 1 },
-              { transform: `translate(${midX1}px, ${midY1}px) scale(1.0)`, opacity: 1, offset: 0.33 },
-              { transform: `translate(${midX2}px, ${midY2}px) scale(1.1)`, opacity: 1, offset: 0.66 },
-              { transform: `translate(${targetX}px, ${targetY}px) scale(1.3) rotate(360deg)`, opacity: 1, offset: 0.8 },
-              { transform: `translate(${targetX}px, ${targetY}px) scale(1.5) rotate(360deg)`, opacity: 1, offset: 0.9 },
-              { transform: `translate(${targetX}px, ${targetY}px) scale(2.0) rotate(360deg)`, opacity: 0 }
+              { transform: 'translate(0, 0) scale(0.8)', opacity: 1 },
+              { transform: `translate(${midX1 - planeTargetX - 14}px, ${midY1 - planeTargetY - 14}px) scale(1.0)`, opacity: 1, offset: 0.33 },
+              { transform: `translate(${midX2 - planeTargetX - 14}px, ${midY2 - planeTargetY - 14}px) scale(1.1)`, opacity: 1, offset: 0.66 },
+              { transform: `translate(${targetX - planeTargetX - 14}px, ${targetY - planeTargetY - 14}px) scale(1.3) rotate(360deg)`, opacity: 1, offset: 0.8 },
+              { transform: `translate(${targetX - planeTargetX - 14}px, ${targetY - planeTargetY - 14}px) scale(1.5) rotate(360deg)`, opacity: 1, offset: 0.9 },
+              { transform: `translate(${targetX - planeTargetX - 14}px, ${targetY - planeTargetY - 14}px) scale(2.0) rotate(360deg)`, opacity: 0 }
             ], {
               duration: 3500,
               easing: 'linear'
@@ -871,9 +972,9 @@
 
             dropBombAnim.onfinish = () => {
               bomb.remove();
-              // Avião retorna para a base
+              // Avião retorna para o porta-aviões
               const flyBack = plane.animate([
-                { transform: `translate(${planeTargetX}px, ${planeTargetY}px) scale(1.2)`, opacity: 1 },
+                { transform: `translate(${planeTargetX - parseInt(startX)}px, ${planeTargetY - parseInt(startY)}px) scale(1.2)`, opacity: 1 },
                 { transform: 'translate(0, 0) scale(0.5)', opacity: 1 }
               ], {
                 duration: 800,
@@ -887,17 +988,43 @@
             };
           };
         } else {
-          // Comportamento normal para outras armas
+          // Comportamento normal para outras armas - sai do navio/submarino selecionado
+          let startX = '50%';
+          let startY = '-40px';
+          
+          if (selectedShip && selectedShip.cells && selectedShip.cells.length > 0) {
+            const playerGrid = document.getElementById('bn2-player-grid');
+            const playerCells = playerGrid.querySelectorAll('.bn2-cell');
+            const [shipR, shipC] = selectedShip.cells[0];
+            let shipCell = null;
+            for (const cell of playerCells) {
+              if (parseInt(cell.dataset.r) === shipR && parseInt(cell.dataset.c) === shipC) {
+                shipCell = cell;
+                break;
+              }
+            }
+            if (shipCell) {
+              const shipRect = shipCell.getBoundingClientRect();
+              startX = (shipRect.left - wrapRect.left + shipRect.width / 2 - 14) + 'px';
+              startY = (shipRect.top - wrapRect.top + shipRect.height / 2 - 14) + 'px';
+            }
+          }
+
           const proj = document.createElement('div');
           proj.className = 'bn2-cell-projectile';
-          proj.textContent = weaponIcon();
-          proj.style.left = '50%';
-          proj.style.top = '-40px';
+          const icon = weaponIcon();
+          if (icon.includes('<img')) {
+            proj.innerHTML = icon;
+          } else {
+            proj.textContent = icon;
+          }
+          proj.style.left = startX;
+          proj.style.top = startY;
           wrapper.appendChild(proj);
 
           proj.animate([
             { transform: 'translate(0, 0) scale(0.5)', opacity: 1 },
-            { transform: `translate(${targetX}px, ${targetY}px) scale(1.3) rotate(360deg)`, opacity: 1 }
+            { transform: `translate(${targetX - parseInt(startX)}px, ${targetY - parseInt(startY)}px) scale(1.3) rotate(360deg)`, opacity: 1 }
           ], {
             duration: 600,
             easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
@@ -910,7 +1037,7 @@
     }
 
     function getActualWeaponIcon() {
-      if (currentWeapon === 'torpedo') return '🎯';
+      if (currentWeapon === 'torpedo') return '<img src="img/fuzil.png" style="width: 20px; height: 20px;">';
       if (currentWeapon === 'missile') return '🚀';
       return '💣';
     }
@@ -1001,21 +1128,25 @@
       renderBoards();
 
       if (playerShips.every(s => s.sunk)) {
-        setTimeout(() => endGame(false), 500);
+        setTimeout(() => endBattle(false), 500);
       }
     }
 
     function endGame(playerWon) {
       gameOver = true;
+      endBattle(playerWon);
+    }
+
+    function endWar(playerWon) {
       const overlay = document.getElementById('bn2-overlay');
       const text = document.getElementById('bn2-overlay-text');
       overlay.classList.remove('bn2-hidden');
       if (playerWon) {
         overlay.classList.add('bn2-overlay-win');
-        text.innerHTML = '🏆 VOCÊ VENCEU!<br><span style="font-size:18px">Todos os navios inimigos afundados!</span>';
+        text.innerHTML = `🏆 VOCÊ VENCEU A GUERRA!<br><span style="font-size:18px">Placar Final: Você ${playerScore} - ${enemyScore} Inimigo</span>`;
       } else {
         overlay.classList.add('bn2-overlay-lose');
-        text.innerHTML = '💀 VOCÊ PERDEU!<br><span style="font-size:18px">Sua frota foi destruída...</span>';
+        text.innerHTML = `💀 VOCÊ PERDEU A GUERRA!<br><span style="font-size:18px">Placar Final: Você ${playerScore} - ${enemyScore} Inimigo</span>`;
       }
     }
 
@@ -1041,6 +1172,12 @@
     }
 
     function restartGame() {
+      // Resetar tudo para uma nova guerra
+      currentPhase = 1;
+      playerScore = 0;
+      enemyScore = 0;
+      warWinner = null;
+      battleHistory = [];
       initGame();
     }
 
