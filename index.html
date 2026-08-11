@@ -408,7 +408,55 @@
         if (ctx.state === 'suspended') ctx.resume();
         const now = ctx.currentTime;
 
-        if (type === 'splash') {
+        if (type === 'phaseComplete') {
+          // Som de fase finalizada - melodia ascendente
+          const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+          notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + i * 0.15);
+            gain.gain.setValueAtTime(0, now + i * 0.15);
+            gain.gain.linearRampToValueAtTime(0.15, now + i * 0.15 + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.15 + 0.3);
+            osc.start(now + i * 0.15);
+            osc.stop(now + i * 0.15 + 0.3);
+          });
+        } else if (type === 'warWin') {
+          // Som de vitória na guerra - melodia triunfante
+          const notes = [523.25, 659.25, 783.99, 1046.50, 783.99, 1046.50, 1318.51]; // C5, E5, G5, C6, G5, C6, E6
+          notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + i * 0.2);
+            gain.gain.setValueAtTime(0, now + i * 0.2);
+            gain.gain.linearRampToValueAtTime(0.2, now + i * 0.2 + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.2 + 0.4);
+            osc.start(now + i * 0.2);
+            osc.stop(now + i * 0.2 + 0.4);
+          });
+        } else if (type === 'warLose') {
+          // Som de derrota na guerra - melodia descendente triste
+          const notes = [392.00, 349.23, 329.63, 293.66, 261.63]; // G4, F4, E4, D4, C4
+          notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + i * 0.25);
+            gain.gain.setValueAtTime(0, now + i * 0.25);
+            gain.gain.linearRampToValueAtTime(0.15, now + i * 0.25 + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.25 + 0.5);
+            osc.start(now + i * 0.25);
+            osc.stop(now + i * 0.25 + 0.5);
+          });
+        } else if (type === 'splash') {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.connect(gain);
@@ -600,9 +648,17 @@
     }
 
     function endBattle(playerWon) {
-      const manipulatedWinner = manipulateBattleResult();
+      let finalWinner;
       
-      if (manipulatedWinner === 'player') {
+      if (playerWon) {
+        // Se o usuário realmente ganhou, respeitar o resultado
+        finalWinner = 'player';
+      } else {
+        // Se o usuário perdeu, aplicar manipulação
+        finalWinner = manipulateBattleResult();
+      }
+      
+      if (finalWinner === 'player') {
         playerScore++;
         log(`🏆 Você venceu a Fase ${currentPhase}!`, 'hit');
       } else {
@@ -610,7 +666,8 @@
         log(`💀 Você perdeu a Fase ${currentPhase}!`, 'miss');
       }
       
-      battleHistory.push(manipulatedWinner);
+      playSound('phaseComplete');
+      battleHistory.push(finalWinner);
       
       if (currentPhase >= totalPhases) {
         // Guerra terminou
@@ -1144,9 +1201,11 @@
       if (playerWon) {
         overlay.classList.add('bn2-overlay-win');
         text.innerHTML = `🏆 VOCÊ VENCEU A GUERRA!<br><span style="font-size:18px">Placar Final: Você ${playerScore} - ${enemyScore} Inimigo</span>`;
+        playSound('warWin');
       } else {
         overlay.classList.add('bn2-overlay-lose');
         text.innerHTML = `💀 VOCÊ PERDEU A GUERRA!<br><span style="font-size:18px">Placar Final: Você ${playerScore} - ${enemyScore} Inimigo</span>`;
+        playSound('warLose');
       }
     }
 
