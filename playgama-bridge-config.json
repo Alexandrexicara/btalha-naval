@@ -1,0 +1,16 @@
+{
+  "$schema": "https://bridge.playgama.com/v1/stable/schema.json",
+  "advertisement": {
+    "minimumDelayBetweenInterstitial": 30,
+    "initialInterstitialDelay": 0,
+    "interstitial": {
+      "disable": true
+    },
+    "rewarded": {
+      "disable": true
+    },
+    "banner": {
+      "disable": true
+    }
+  }
+}
