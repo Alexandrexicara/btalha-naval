@@ -3,8 +3,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <!-- Playgama Bridge: mantido para salvamento de progresso -->
-<script src=""></script>
+
 
 <!-- GameMonetize HTML5 SDK -->
 <script type="text/javascript">
@@ -20,15 +19,11 @@
         case "SDK_GAME_START":
           window.__gmAdPlaying = false;
           if (window.__gmResumeGame) window.__gmResumeGame();
-          if (window.__gmRewardWaiting) {
-            const cb = window.__gmRewardWaiting;
-            window.__gmRewardWaiting = null;
-            cb(true);
-          }
           break;
         case "SDK_READY":
           window.__gmSdkReady = true;
           console.log("✅ GameMonetize SDK pronto!");
+          if (window.__gmOnReady) window.__gmOnReady();
           break;
         case "SDK_ERROR":
           window.__gmSdkReady = false;
@@ -734,10 +729,6 @@
       updateMissionUI();
       
       if (currentPhase >= totalPhases) {
-        // Última fase concluída: salvar imediatamente antes da tela final.
-        if (typeof window.salvarProgressoPlaygama === 'function') {
-          window.salvarProgressoPlaygama(totalPhases).catch(() => {});
-        }
         // Guerra terminou
         if (playerScore > enemyScore) {
           warWinner = 'player';
@@ -753,15 +744,6 @@
         currentPhase = proximaFase;
         (async () => {
           try {
-            // SALVAMENTO REAL NO PLAYGAMA: executado imediatamente após concluir a fase.
-            // A QA da plataforma precisa interceptar esta chamada ao Storage.
-            if (typeof window.salvarProgressoPlaygama === 'function') {
-              const salvo = await window.salvarProgressoPlaygama(proximaFase);
-              console.log(salvo ? '💾 PROGRESSO DA FASE SALVO' : '⚠️ PROGRESSO NÃO FOI SALVO');
-            }
-          } catch (e) {
-            console.warn('Erro ao salvar progresso:', e);
-          }
           try {
             if (typeof avisarFimFase === 'function') {
               await avisarFimFase(faseConcluida);
@@ -1320,14 +1302,6 @@
       logEl.scrollTop = logEl.scrollHeight;
     }
 
-    let vidasExtras = 0;
-
-    window.concederVidaExtra = function() {
-      vidasExtras++;
-      log(`VIDA EXTRA RECEBIDA! Total: ${vidasExtras}`, 'info');
-      alert(`VIDA EXTRA CONCEDIDA!\nTotal de vidas extras: ${vidasExtras}`);
-    };
-
     function restartGame() {
       // Resetar tudo para uma nova guerra
       currentPhase = 1;
@@ -1339,13 +1313,9 @@
       initGame();
     }
 
-    if (typeof window.aguardarProgresso === 'function') {
-      window.aguardarProgresso().then(() => initGame());
-    } else {
-      initGame();
-    }
+    initGame();
   </script>
-<div class="bn2-reward-bar"><span>Precisa de uma segunda chance?</span><button id="bn2-reward-btn" onclick="mostrarVideoRecompensa()">🎁 Assistir anúncio e ganhar vida extra</button></div></body>
+<div class="bn2-reward-bar"><span>Quer apoiar o jogo?</span><button id="bn2-ad-btn" onclick="mostrarAnuncioGameMonetize()">📺 Exibir anúncio</button></div></body>
 </html>
 
 
