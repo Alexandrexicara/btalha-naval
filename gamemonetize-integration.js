@@ -20,7 +20,8 @@
   window.__gmResumeGame = function () {
     window.__gmAdPlaying = false;
     try {
-      if (window.audioCtx && window.audioCtx.state === "suspended") window.audioCtx.resume();
+      // O áudio será retomado por playSound() após uma interação do jogador.
+      // Não chamar AudioContext.resume() aqui: SDK_GAME_START pode ocorrer sem gesto do usuário.
       const fireButton = document.getElementById("bn2-fire-btn");
       if (fireButton && !window.gameOver) fireButton.disabled = false;
       console.log("▶️ Jogo retomado após anúncio GameMonetize.");
