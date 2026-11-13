@@ -744,9 +744,8 @@
         currentPhase = proximaFase;
         (async () => {
           try {
-          try {
-            if (typeof avisarFimFase === 'function') {
-              await avisarFimFase(faseConcluida);
+            if (typeof window.avisarFimFase === 'function') {
+              await window.avisarFimFase(faseConcluida);
             }
           } catch (e) {
             console.warn('Erro na transicao de anuncio:', e);
